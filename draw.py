@@ -119,12 +119,19 @@ def tag(d, x, y, text, bg, fg=(255, 255, 255), font=None, pad=4):
     return x + w
 
 
+def rtext(d, w, y, text, fill, font=None):
+    """Right-aligned small figure text inside a scene."""
+    f = font or SANS_B(8)
+    d.text((w - 4 - d.textlength(text, font=f), y), text, font=f, fill=fill)
+
+
 def chip(d, x, y, text, kind):
     """Status chip: coloured dot + bold small-caps text, right-aligned to x."""
     colours = {"CONFIRMED": GREEN, "OFFICIALS": TEAL, "CLOSE": NAVY,
                "ONGOING": GOLD, "REPORT": (120, 70, 160), "AGREED": GREEN,
                "ESTIMATE": (170, 100, 20), "ARRIVED": TEAL, "EARLY": (170, 100, 20),
-               "RESULT": GREEN, "OFFICIAL": TEAL, "CEREMONY": GOLD}
+               "RESULT": GREEN, "OFFICIAL": TEAL, "CEREMONY": GOLD,
+               "CLAIM": (178, 34, 30)}
     c = colours.get(kind, MUTE)
     f = SANS_B(8)
     w = int(d.textlength(text, font=f)) + 14
@@ -327,7 +334,7 @@ def scene_brussels(w, h):
               fill=(90, 40, 36))
     d.ellipse([w // 2 - 10, h - 20, w // 2 + 10, h - 8], fill=SKIN)
     d.rectangle([w // 2 - 24, h - 8, w // 2 + 24, h - 2], fill=(240, 236, 224))
-    tag(d, 4, 4, "RESET DEAL SEALED", GREEN)
+    tag(d, 4, 4, "£5.1BN/YR RESET DEAL", GREEN)
     return img
 
 
@@ -351,6 +358,10 @@ def scene_poland(w, h):
                    (cx + 8 * math.cos(ang + 0.2), cy + 8 * math.sin(ang + 0.2))],
                   fill=(255, 255, 255))
     tag(d, 4, 4, "KH-101 IN POLAND", RED)
+    s = "2 MISSILES · 1 DRONE"
+    d.text((w - 4 - d.textlength(s, font=SANS_B(8)), h - 14), s,
+           font=SANS_B(8), fill=(255, 250, 235), stroke_width=1,
+           stroke_fill=(40, 44, 32))
     return img
 
 
@@ -408,7 +419,7 @@ def scene_gaza(w, h):
     for tx in (w - 52, w - 30):
         d.polygon([(tx, h - 12), (tx + 8, h - 24), (tx + 16, h - 12)],
                   fill=(238, 232, 218))
-    tag(d, 4, 4, "YELLOW LINE", (150, 116, 10))
+    tag(d, 4, 4, "YELLOW LINE · 6,000 FLED", (150, 116, 10))
     d.text((w - 74, h - 15), "RAID ENDED", font=SANS_B(9), fill=(90, 70, 40))
     return img
 
@@ -465,6 +476,7 @@ def scene_strike(w, h):
         d.rectangle([px, 6, px + 52, 20], fill=(250, 248, 242), outline=INK)
         f = SANS_B(7.5)
         d.text((px + 26 - d.textlength(txt, font=f) / 2, 9), txt, font=f, fill=RED_DK)
+    tag(d, 4, h - 17, "100 RALLIES", RED)
     return img
 
 
@@ -520,6 +532,7 @@ def scene_kenya(w, h):
     d.line([w - 30, h - 10, w - 28, h - 24], fill=(80, 60, 40), width=3)
     d.ellipse([w - 48, h - 34, w - 8, h - 22], fill=(86, 110, 54))
     tag(d, 4, 4, "FIRST OIL WELL", (120, 70, 20))
+    rtext(d, w, h - 14, "CRUDE DUE 1 DEC", (70, 40, 14))
     return img
 
 
@@ -544,6 +557,7 @@ def scene_tennis(w, h):
 # ================================================================ CONTENT
 HEROES = [
     dict(n=1, scene=scene_kyiv, kick="KYIV · UKRAINE — WAR", chip=("OFFICIALS · UKRAINE", "OFFICIALS"),
+         chip2=("CLAIM · MOSCOW", "CLAIM"),
          head="Russia's biggest blitz hits Kyiv's bridges",
          deck="110+ missiles and 400+ drones overnight; three Dnipro bridges hit; "
               "8 killed, 28 hurt; power and water cut. Putin had vowed revenge "
@@ -649,6 +663,12 @@ BRIEFS = [
     ("Delhi:", "Pakistani minister, first since 2025 war"),
 ]
 
+# region tag per brief, same order as BRIEFS (EUR/ASI/AME/AFR/MEA/OCE/GLO)
+BRIEF_REGIONS = ["EUR", "EUR", "EUR", "EUR", "ASI", "ASI", "MEA", "MEA",
+                 "AFR", "AFR", "AFR", "AFR", "AME", "AME", "OCE", "OCE",
+                 "EUR", "GLO", "GLO", "EUR", "EUR", "MEA", "MEA", "AFR",
+                 "AFR", "ASI", "AME", "AME", "AME", "ASI"]
+
 # coarse dotted world map, 72 x 26 grid ('#' = land)
 MAP_ROWS = [
     "                                                                        ",
@@ -718,7 +738,7 @@ def build_page():
 
     # ---- top strap + masthead
     d.text((MX, 8), "THE WORLD'S NEWS IN ONE PICTURE", font=SANS_B(10), fill=RED_DK)
-    strap = "46 STORIES · 7 REGIONS · COMPLETE DAY — INCL. EVENING RESULTS"
+    strap = "46 STORIES · 7 REGIONS · 10 FIELDS · COMPLETE DAY — INCL. EVENING RESULTS"
     d.text((W - MX - d.textlength(strap, font=SANS_B(10)), 8), strap,
            font=SANS_B(10), fill=INK)
     d.line([MX, 24, W - MX, 24], fill=INK, width=2)
@@ -742,40 +762,55 @@ def build_page():
         text_block(d, x, ty + 27, small, SANS(8.5), MUTE, colw - 12, 10,
                    max_lines=2, tag=f"tally{i}")
     # ---- region tally bar
-    by = ty + 52
+    by = ty + 46
     regions = [("Europe 11", (52, 84, 140)), ("Asia-Pacific 10", (178, 34, 30)),
                ("Americas 7", (23, 92, 96)), ("Africa 7", (196, 148, 38)),
                ("Middle East 5", (120, 70, 160)), ("Oceania 2", (38, 110, 62)),
                ("Global 4", (96, 90, 78))]
     widths = [11, 10, 7, 7, 5, 2, 4]
-    x = MX
+    d.rectangle([MX, by, MX + 46, by + 13], fill=INK)
+    d.text((MX + 5, by + 2), "REGION", font=SANS_B(7.5), fill=(255, 255, 255))
+    x = MX + 48
     total = sum(widths)
+    avail = CW - 48
     for (label, col), wfrac in zip(regions, widths):
-        seg = int(CW * wfrac / total)
-        d.rectangle([x, by, x + seg - 2, by + 15], fill=col)
+        seg = int(avail * wfrac / total)
+        d.rectangle([x, by, x + seg - 2, by + 13], fill=col)
         f = SANS_B(8.5)
         if seg > 52:
-            d.text((x + seg / 2 - d.textlength(label, font=f) / 2, by + 3),
+            d.text((x + seg / 2 - d.textlength(label, font=f) / 2, by + 2),
                    label, font=f, fill=(255, 255, 255))
         x += seg
 
-    # ---- UTC timeline strip
-    ly = by + 24
+    # ---- field tally strip (breadth by subject, counted)
+    fy2 = by + 16
+    d.rectangle([MX, fy2, W - MX, fy2 + 15], fill=INK)
+    fields = ("BY FIELD — Conflict 10 · Markets 8 · Politics 7 · Sport 7 · "
+              "Science & Health 3 · Business 3 · Diplomacy 2 · Climate 2 · "
+              "Weather & Disaster 2 · Society 2")
+    d.text((MX + 8, fy2 + 3), fields, font=SANS_B(8.5), fill=(255, 255, 255))
+
+    # ---- UTC timeline strip: hour-true positions, staggered labels
+    ly = fy2 + 24
     d.text((MX, ly + 4), "THE DAY IN UTC", font=SANS_B(9), fill=RED_DK)
-    d.line([MX + 96, ly + 8, W - MX, ly + 8], fill=(150, 142, 124), width=1)
-    events = [(0.02, "02:00", "Akvan landfall"), (0.20, "05:30", "Kh-101 in Poland"),
-              (0.38, "07:00", "Asia closes deep red"), (0.56, "11:00", "Brussels deal sealed"),
-              (0.74, "16:00", "COP31 deadlocked"), (0.93, "21:00", "Wall St closes lower")]
-    for frac, tm, ev in events:
+    d.line([MX + 96, ly + 9, W - MX, ly + 9], fill=(150, 142, 124), width=1)
+    events = [(2 / 24, "02:00", "Akvan landfall", 0),
+              (5.5 / 24, "05:30", "Kh-101 in Poland", 1),
+              (6.5 / 24, "06:30", "Seoul close −5.2%", 0),
+              (11 / 24, "11:00", "Brussels deal sealed", 1),
+              (16 / 24, "16:00", "COP31 deadlocked", 0),
+              (21 / 24, "21:00", "Wall St closes lower", 1)]
+    for frac, tm, ev, row in events:
         ex = MX + 96 + frac * (CW - 110)
-        d.ellipse([ex - 3, ly + 5, ex + 3, ly + 11], fill=RED)
-        d.text((ex - 12, ly + 13), tm, font=SANS_B(8.5), fill=INK)
+        d.ellipse([ex - 3, ly + 6, ex + 3, ly + 12], fill=RED)
+        d.text((ex - 12, ly + 14), tm, font=SANS_B(8.5), fill=INK)
         f = SANS(8)
-        d.text((ex - d.textlength(ev, font=f) / 2, ly + 24), ev, font=f, fill=MUTE)
+        d.text((ex - d.textlength(ev, font=f) / 2, ly + 25 + row * 11), ev,
+               font=f, fill=MUTE)
 
     # ---- heroes
-    hy = ly + 42
-    hero_h, scene_h = 240, 112
+    hy = ly + 48
+    hero_h, scene_h = 230, 104
     gap = 8
     hw = (CW - gap * 3) // 4
     for i, s in enumerate(HEROES):
@@ -784,23 +819,25 @@ def build_page():
         num_badge(d, x + 5, hy + scene_h + 6, s["n"])
         d.text((x + 26, hy + scene_h + 8), s["kick"], font=SANS_B(8.5), fill=RED_DK)
         yy = text_block(d, x, hy + scene_h + 24, s["head"], SERIF(16.5), INK,
-                        hw - 2, 19, max_lines=3, tag=f"hero{s['n']} head")
+                        hw - 2, 18.5, max_lines=3, tag=f"hero{s['n']} head")
         yy = text_block(d, x, yy + 2, s["deck"], SANS(9.8), (52, 48, 40),
-                        hw - 2, 12.4, max_lines=6, tag=f"hero{s['n']} deck")
-        chip(d, x + hw - 2, hy + hero_h - 16, s["chip"][0], s["chip"][1])
+                        hw - 2, 12.0, max_lines=6, tag=f"hero{s['n']} deck")
+        left = chip(d, x + hw - 2, hy + hero_h - 16, s["chip"][0], s["chip"][1])
+        if s.get("chip2"):
+            chip(d, left - 4, hy + hero_h - 16, s["chip2"][0], s["chip2"][1])
         if i:
             d.line([x - gap // 2, hy, x - gap // 2, hy + hero_h - 4],
                    fill=(190, 182, 164), width=1)
 
     # ---- cards, two rows of six
-    cy = hy + hero_h + 8
-    card_h, cscene_h = 143, 44
+    cy = hy + hero_h + 6
+    card_h, cscene_h = 140, 44
     cw6 = (CW - gap * 5) // 6
     for r in range(2):
         for c in range(6):
             s = CARDS[r * 6 + c]
             x = MX + c * (cw6 + gap)
-            y = cy + r * (card_h + 6)
+            y = cy + r * (card_h + 5)
             d = paste_scene(page, s["scene"](cw6, cscene_h), x, y)
             num_badge(d, x + 3, y + cscene_h + 4, s["n"])
             d.text((x + 23, y + cscene_h + 6), s["kick"], font=SANS_B(7.5),
@@ -811,22 +848,32 @@ def build_page():
                        cw6 - 1, 10.6, max_lines=4, tag=f"card{s['n']} deck")
             chip(d, x + cw6 - 1, y + card_h - 14, s["chip"][0], s["chip"][1])
 
-    # ---- bottom: map + date check (left), briefs (right)
-    boty = cy + 2 * card_h + 18
+    # ---- bottom: map + date check + legend (left), briefs (right)
+    boty = cy + 2 * card_h + 13
     d.line([MX, boty - 6, W - MX, boty - 6], fill=INK, width=1)
     d.text((MX, boty), "WHERE IT HAPPENED", font=SANS_B(10), fill=INK)
     d.text((MX + 170, boty), "pins 1–16 = heroes & cards", font=SANS(8.5), fill=MUTE)
-    draw_map(d, MX + 2, boty + 16, rh=4.8)
-    dcy = boty + 134
-    d.rectangle([MX, dcy, MX + 292, dcy + 56], outline=RED, width=1)
+    draw_map(d, MX + 2, boty + 16, rh=3.5)
+    dcy = boty + 101
+    d.rectangle([MX, dcy, MX + 292, dcy + 58], outline=RED, width=1)
     d.text((MX + 6, dcy + 4), "DATE CHECK — LEFT OUT AS OLDER NEWS",
            font=SANS_B(8.5), fill=RED_DK)
     text_block(d, MX + 6, dcy + 17,
-               "Thu 19 Nov: Shenzhen three-leader declaration; World "
-               "Court's Myanmar ruling; Anthropic's debut (Fri fall "
-               "shown); GTA VI launch day (Fri sales shown). 16–17 Nov: "
-               "Crimean Bridge strikes. Not yet: Mercury orbit (Sat).",
-               SANS(8.2), (52, 48, 40), 280, 10.0, max_lines=4, tag="datecheck")
+               "Thu 19 Nov: Shenzhen declaration; ICJ Myanmar ruling; "
+               "Anthropic's debut (Fri fall shown); GTA VI launch "
+               "(Fri sales shown). 16–17 Nov: Crimean strikes. "
+               "NOT YET: Mercury orbit Sat 21 Nov; ATP final Sun 22 Nov; "
+               "Las Vegas GP Sun 23 Nov.",
+               SANS(8.0), (52, 48, 40), 280, 9.0, max_lines=5, tag="datecheck")
+    lgy = dcy + 61
+    d.rectangle([MX, lgy, MX + 292, lgy + 41], outline=(150, 142, 124), width=1)
+    d.text((MX + 6, lgy + 3), "HOW SURE — THE CHIP ON EACH STORY",
+           font=SANS_B(7.8), fill=INK)
+    text_block(d, MX + 6, lgy + 13,
+               "CONFIRMED = 2+ outlets · OFFICIAL = the body itself · "
+               "REPORT = one outlet · CLAIM = one side's word · "
+               "ESTIMATE = a firm's figure · CLOSE = exchange close",
+               SANS(7.6), (52, 48, 40), 280, 9.0, max_lines=3, tag="legend")
     bx = MX + 308
     d.text((bx, boty), "ALSO ON FRIDAY 20 NOVEMBER", font=SANS_B(10), fill=INK)
     d.text((W - MX - 118, boty), "30 MORE STORIES · Nos 17–46", font=SANS_B(8.5),
@@ -837,9 +884,9 @@ def build_page():
         for j in range(15):
             n = 17 + ci * 15 + j
             lead, rest = BRIEFS[ci * 15 + j]
-            line = f"{n}. {lead} {rest}"
+            line = f"{n}. {BRIEF_REGIONS[ci * 15 + j]} {lead} {rest}"
             yy = text_block(d, bx + ci * (col_w + 14), yy, line, SANS(9.3),
-                            (52, 48, 40), col_w, 11.6, max_lines=1,
+                            (52, 48, 40), col_w, 11.2, max_lines=1,
                             tag=f"brief{n}")
     # ---- footer
     fy = H - 26
