@@ -125,6 +125,19 @@ def rtext(d, w, y, text, fill, font=None):
     d.text((w - 4 - d.textlength(text, font=f), y), text, font=f, fill=fill)
 
 
+def stamp(img, cx, cy, text, colour, angle=-11, size=11):
+    """Rotated rubber-stamp label pasted over a scene."""
+    f = SANS_B(size)
+    tw = int(ImageDraw.Draw(img).textlength(text, font=f)) + 14
+    layer = Image.new("RGBA", (tw + 4, 26), (0, 0, 0, 0))
+    ld = ImageDraw.Draw(layer)
+    ld.rectangle([1, 1, tw + 2, 24], outline=colour + (235,), width=2)
+    ld.text((8, 5), text, font=f, fill=colour + (235,))
+    layer = layer.rotate(angle, expand=True, resample=Image.BICUBIC)
+    img.paste(layer, (int(cx - layer.width / 2), int(cy - layer.height / 2)),
+              layer)
+
+
 def chip(d, x, y, text, kind):
     """Status chip: coloured dot + bold small-caps text, right-aligned to x."""
     colours = {"CONFIRMED": GREEN, "OFFICIALS": TEAL, "CLOSE": NAVY,
@@ -273,6 +286,7 @@ def scene_cop(w, h):
     tag(d, 6, 6, "ANTALYA", RED)
     tag(d, 6, h - 15, "COP31 · FINAL DAY", (0, 0, 0))
     d.text((8, 34), "DRAFT: 144 → 80", font=SANS_B(9), fill=(90, 60, 30))
+    stamp(img, w - 70, 40, "NO DEAL", (178, 34, 30))
     return img
 
 
@@ -307,6 +321,7 @@ def scene_asia_selloff(w, h):
         d.text((58, yv), val, font=SANS_B(10), fill=(255, 120, 110))
     d.text((w - 104, h - 13), "SOFTBANK -14.5%", font=SANS_B(8),
            fill=(255, 190, 120))
+    stamp(img, 156, 58, "$4TN WIPED", (255, 92, 82), size=10)
     return img
 
 
@@ -661,13 +676,17 @@ BRIEFS = [
     ("California:", "coast waves top 9 metres"),
     ("New York:", "Mamdani plans to close Rikers by 2032"),
     ("Delhi:", "Pakistani minister, first since 2025 war"),
+    ("Los Angeles:", "pre-dawn 4.2 quake near Commerce, no damage"),
+    ("Loyalty Is.:", "M5.6 quake, no tsunami risk (USGS)"),
+    ("San Salvador:", "Bukele registers for a third term"),
 ]
 
 # region tag per brief, same order as BRIEFS (EUR/ASI/AME/AFR/MEA/OCE/GLO)
 BRIEF_REGIONS = ["EUR", "EUR", "EUR", "EUR", "ASI", "ASI", "MEA", "MEA",
                  "AFR", "AFR", "AFR", "AFR", "AME", "AME", "OCE", "OCE",
                  "EUR", "GLO", "GLO", "EUR", "EUR", "MEA", "MEA", "AFR",
-                 "AFR", "ASI", "AME", "AME", "AME", "ASI"]
+                 "AFR", "ASI", "AME", "AME", "AME", "ASI", "AME", "OCE",
+                 "AME"]
 
 # coarse dotted world map, 72 x 26 grid ('#' = land)
 MAP_ROWS = [
@@ -738,36 +757,23 @@ def build_page():
 
     # ---- top strap + masthead
     d.text((MX, 8), "THE WORLD'S NEWS IN ONE PICTURE", font=SANS_B(10), fill=RED_DK)
-    strap = "46 STORIES · 7 REGIONS · 10 FIELDS · COMPLETE DAY — INCL. EVENING RESULTS"
+    strap = "49 STORIES · 7 REGIONS · 10 FIELDS · COMPLETE DAY — INCL. EVENING RESULTS"
     d.text((W - MX - d.textlength(strap, font=SANS_B(10)), 8), strap,
            font=SANS_B(10), fill=INK)
     d.line([MX, 24, W - MX, 24], fill=INK, width=2)
-    center(d, 30, "Friday 20 November 2026", SERIF(57), INK)
-    d.line([MX, 100, W - MX, 100], fill=INK, width=1)
-    sub = ("Russian missiles hit Kyiv's bridges · Cyclone Akvan strikes India · "
-           "An AI sell-off sinks Asia's markets · UK and EU seal a deal")
-    center(d, 105, sub, SANS_O(12.5), (60, 54, 44))
+    center(d, 26, "Friday 20 November 2026", SERIF(57), INK)
+    d.line([MX, 92, W - MX, 92], fill=INK, width=1)
+    sub = ("Russia's biggest blitz hits Kyiv's bridges · Cyclone Akvan "
+           "strikes Odisha · An AI sell-off sinks Asia's markets")
+    center(d, 97, sub, SANS_O(12.5), RED_DK)
 
-    # ---- big-number tally strip
-    ty = 124
-    tallies = [("3", "Dnipro bridges hit in Kyiv"), ("300,000+", "people moved before Akvan"),
-               ("−6.2%", "Taiwan's Taiex at Friday's close"), ("100,000", "youth places a year in UK–EU deal"),
-               ("$2.36bn", "GTA VI's first-day sales (est.)"), ("−2.85%", "Nasdaq at Friday's close")]
-    colw = CW // 6
-    for i, (big, small) in enumerate(tallies):
-        x = MX + i * colw
-        if i:
-            d.line([x - 7, ty + 2, x - 7, ty + 40], fill=RED, width=2)
-        d.text((x, ty), big, font=SERIF(21), fill=INK)
-        text_block(d, x, ty + 27, small, SANS(8.5), MUTE, colw - 12, 10,
-                   max_lines=2, tag=f"tally{i}")
     # ---- region tally bar
-    by = ty + 46
+    by = 116
     regions = [("Europe 11", (52, 84, 140)), ("Asia-Pacific 10", (178, 34, 30)),
-               ("Americas 7", (23, 92, 96)), ("Africa 7", (196, 148, 38)),
-               ("Middle East 5", (120, 70, 160)), ("Oceania 2", (38, 110, 62)),
+               ("Americas 9", (23, 92, 96)), ("Africa 7", (196, 148, 38)),
+               ("Middle East 5", (120, 70, 160)), ("Oceania 3", (38, 110, 62)),
                ("Global 4", (96, 90, 78))]
-    widths = [11, 10, 7, 7, 5, 2, 4]
+    widths = [11, 10, 9, 7, 5, 3, 4]
     d.rectangle([MX, by, MX + 46, by + 13], fill=INK)
     d.text((MX + 5, by + 2), "REGION", font=SANS_B(7.5), fill=(255, 255, 255))
     x = MX + 48
@@ -785,13 +791,28 @@ def build_page():
     # ---- field tally strip (breadth by subject, counted)
     fy2 = by + 16
     d.rectangle([MX, fy2, W - MX, fy2 + 15], fill=INK)
-    fields = ("BY FIELD — Conflict 10 · Markets 8 · Politics 7 · Sport 7 · "
+    fields = ("BY FIELD — Conflict 10 · Markets 8 · Politics 8 · Sport 7 · "
               "Science & Health 3 · Business 3 · Diplomacy 2 · Climate 2 · "
-              "Weather & Disaster 2 · Society 2")
+              "Weather & Disaster 4 · Society 2")
     d.text((MX + 8, fy2 + 3), fields, font=SANS_B(8.5), fill=(255, 255, 255))
 
+    # ---- THE DAY IN NUMBERS strip
+    ny = fy2 + 24
+    d.text((MX, ny), "THE DAY IN NUMBERS", font=SANS_B(9), fill=RED_DK)
+    tallies = [("3", "Dnipro bridges hit in Kyiv"), ("300,000+", "people moved before Akvan"),
+               ("−6.2%", "Taiex at Friday's close"), ("100,000", "youth places/yr in UK–EU deal"),
+               ("$2.36bn", "GTA VI first-day sales (est.)"), ("−2.85%", "Nasdaq at Friday's close")]
+    colw = CW // 6
+    for i, (big, small) in enumerate(tallies):
+        x = MX + i * colw
+        if i:
+            d.line([x - 7, ny + 13, x - 7, ny + 45], fill=RED, width=2)
+        d.text((x, ny + 11), big, font=SERIF(20), fill=INK)
+        text_block(d, x, ny + 36, small, SANS(8.5), MUTE, colw - 12, 9.5,
+                   max_lines=1, tag=f"tally{i}")
+
     # ---- UTC timeline strip: hour-true positions, staggered labels
-    ly = fy2 + 24
+    ly = ny + 50
     d.text((MX, ly + 4), "THE DAY IN UTC", font=SANS_B(9), fill=RED_DK)
     d.line([MX + 96, ly + 9, W - MX, ly + 9], fill=(150, 142, 124), width=1)
     events = [(2 / 24, "02:00", "Akvan landfall", 0),
@@ -876,17 +897,22 @@ def build_page():
                SANS(7.6), (52, 48, 40), 280, 9.0, max_lines=3, tag="legend")
     bx = MX + 308
     d.text((bx, boty), "ALSO ON FRIDAY 20 NOVEMBER", font=SANS_B(10), fill=INK)
-    d.text((W - MX - 118, boty), "30 MORE STORIES · Nos 17–46", font=SANS_B(8.5),
-           fill=MUTE)
+    more = "33 MORE STORIES · Nos 17–49"
+    d.text((W - MX - d.textlength(more, font=SANS_B(8.5)), boty), more,
+           font=SANS_B(8.5), fill=MUTE)
     col_w = (W - MX - bx - 14) // 2
+    per = (len(BRIEFS) + 1) // 2
     for ci in range(2):
         yy = boty + 17
-        for j in range(15):
-            n = 17 + ci * 15 + j
-            lead, rest = BRIEFS[ci * 15 + j]
-            line = f"{n}. {BRIEF_REGIONS[ci * 15 + j]} {lead} {rest}"
+        for j in range(per):
+            idx = ci * per + j
+            if idx >= len(BRIEFS):
+                break
+            n = 17 + idx
+            lead, rest = BRIEFS[idx]
+            line = f"{n}. {BRIEF_REGIONS[idx]} {lead} {rest}"
             yy = text_block(d, bx + ci * (col_w + 14), yy, line, SANS(9.3),
-                            (52, 48, 40), col_w, 11.2, max_lines=1,
+                            (52, 48, 40), col_w, 11.0, max_lines=1,
                             tag=f"brief{n}")
     # ---- footer
     fy = H - 26
