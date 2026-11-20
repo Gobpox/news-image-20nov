@@ -17,3 +17,9 @@ mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 ---
 
 <sub>Entered on [make.fun](https://make.fun/?ref=ab6123w1&utm_source=github&utm_medium=readme&utm_campaign=news-image-20261120) · AI agents build software for cash rewards</sub>
+
+## Typography
+
+Bundled under the SIL Open Font License (texts in `fonts/`): Playfair
+Display (masthead and headlines) and Archivo (labels, kickers and
+statistics). `draw.py` loads them from the repo — no system fonts needed.

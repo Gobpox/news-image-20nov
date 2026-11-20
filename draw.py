@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1024, 1024
-FD = "/usr/share/fonts/truetype/dejavu/"
+FONT_DIR = Path(__file__).resolve().parent / "fonts"
 
 # ---------------------------------------------------------------- palette
 PAPER = (243, 238, 226)
@@ -30,23 +30,65 @@ GOLD = (196, 148, 38)
 GREEN = (38, 110, 62)
 SKIN = (222, 184, 150)
 
+# region-bound colours: the same colour in the tally bar, the map pins
+# and each story's number badge
+REGION_COLORS = {"EUR": (52, 84, 140), "ASI": (178, 34, 30),
+                 "AME": (23, 92, 96), "AFR": (196, 148, 38),
+                 "MEA": (120, 70, 160), "OCE": (38, 110, 62),
+                 "GLO": (96, 90, 78)}
+# region of stories 1..16 (heroes + cards), for map pins and badges
+STORY_REGION = {1: "EUR", 2: "ASI", 3: "ASI", 4: "ASI", 5: "EUR",
+                6: "EUR", 7: "AME", 8: "AME", 9: "MEA", 10: "GLO",
+                11: "ASI", 12: "EUR", 13: "ASI", 14: "GLO", 15: "AFR",
+                16: "EUR"}
+
+
+def _f(name, sz):
+    return ImageFont.truetype(str(FONT_DIR / name), sz)
+
 
 def SERIF(sz):
-    return ImageFont.truetype(FD + "DejaVuSerif-Bold.ttf", sz)
+    """Playfair Display Bold — headlines."""
+    return _f("PlayfairDisplay-Bold.ttf", sz)
+
+
+def SERIF_BLACK(sz):
+    """Playfair Display Black — the masthead."""
+    return _f("PlayfairDisplay-Black.ttf", sz)
+
+
+def SERIF_I(sz):
+    """Playfair Display SemiBold Italic — the red summary strap."""
+    return _f("PlayfairDisplay-SemiBoldItalic.ttf", sz)
 
 
 def SANS(sz):
-    return ImageFont.truetype(FD + "DejaVuSans.ttf", sz)
+    """Archivo Regular — body text."""
+    return _f("Archivo-Regular.ttf", sz)
 
 
 def SANS_B(sz):
-    return ImageFont.truetype(FD + "DejaVuSans-Bold.ttf", sz)
+    """Archivo Bold — labels, kickers, stat numbers."""
+    return _f("Archivo-Bold.ttf", sz)
+
+
+def SANS_SB(sz):
+    """Archivo SemiBold."""
+    return _f("Archivo-SemiBold.ttf", sz)
 
 
 def SANS_O(sz):
-    # no DejaVu Sans Oblique on this system; the strap reads better in
-    # the regular serif anyway, so use it for oblique-style lines
-    return ImageFont.truetype(FD + "DejaVuSerif.ttf", sz)
+    return SERIF_I(sz)
+
+
+def fit_font(text, maxw, maker, hi, lo):
+    """Largest size in [lo, hi] whose rendered width fits maxw."""
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    for sz in range(hi, lo - 1, -1):
+        f = maker(sz)
+        if probe.textlength(text, font=f) <= maxw:
+            return f
+    return maker(lo)
 
 
 # ---------------------------------------------------------------- helpers
@@ -573,7 +615,7 @@ def scene_tennis(w, h):
 HEROES = [
     dict(n=1, scene=scene_kyiv, kick="KYIV · UKRAINE — WAR", chip=("OFFICIALS · UKRAINE", "OFFICIALS"),
          chip2=("CLAIM · MOSCOW", "CLAIM"),
-         head="Russia's biggest blitz hits Kyiv's bridges",
+         head="Russia's biggest blitz on Kyiv's bridges",
          deck="110+ missiles and 400+ drones overnight; three Dnipro bridges hit; "
               "8 killed, 28 hurt; power and water cut. Putin had vowed revenge "
               "for the Crimean Bridge strikes. — Reuters"),
@@ -588,7 +630,7 @@ HEROES = [
               "a France- and Panama-led bloc demands a stronger text; the "
               "talks head into overtime. — UN News"),
     dict(n=4, scene=scene_asia_selloff, kick="TAIPEI · SEOUL · TOKYO — MARKETS", chip=("CLOSE · EXCHANGES", "CLOSE"),
-         head="AI sell-off sinks Asia's stock markets",
+         head="AI sell-off sinks Asia's markets",
          deck="Taiwan's worst week since 1991; SoftBank falls 14.5%, its worst "
               "day in two years; about $4tn is wiped from world stocks, gold "
               "and crypto in a day. — Exchanges"),
@@ -597,52 +639,42 @@ HEROES = [
 CARDS = [
     dict(n=5, scene=scene_brussels, kick="BRUSSELS · DIPLOMACY", chip=("AGREED · REUTERS", "AGREED"),
          head="UK and EU seal a “reset” deal",
-         deck="Food checks eased, carbon markets linked, 100,000 youth places "
-              "a year each way — from 2028. — Reuters"),
+         deck="Food checks eased; youth deal 100k/yr from 2028. "
+              "— Reuters"),
     dict(n=6, scene=scene_poland, kick="E. POLAND · SECURITY", chip=("CONFIRMED · POLAND", "CONFIRMED"),
          head="Russian missiles land in Poland",
-         deck="Two missiles and a drone come down in the south-east; Tusk "
-              "calls it a provocation; nobody hurt. — Reuters"),
+         deck="Missiles + drone in south-east; Tusk: provocation. "
+              "— Reuters"),
     dict(n=7, scene=scene_wallst, kick="NEW YORK · MARKETS", chip=("CLOSE · NYSE", "CLOSE"),
          head="Anthropic dives as Wall Street slides",
-         deck="Nasdaq −2.85% to 23,198 at the close; Anthropic −11% a day "
-              "after its record debut. — NYSE"),
+         deck="Nasdaq −2.85% to 23,198; Anthropic −11%."),
     dict(n=8, scene=scene_gta, kick="GAMES · BUSINESS", chip=("ESTIMATE · SENSOR TOWER", "ESTIMATE"),
          head="GTA VI's first day tops $2.36bn",
-         deck="About 24.5m copies in 24 hours — the biggest entertainment "
-              "launch ever, Sensor Tower estimates."),
+         deck="24.5m copies in 24h — biggest launch ever."),
     dict(n=9, scene=scene_gaza, kick="GAZA · WAR", chip=("REPORT · AL JAZEERA", "REPORT"),
          head="Israel ends its Gaza ground raid",
-         deck="Troops withdraw beyond the Yellow Line; Hamas calls it a truce "
-              "breach; the main road reopens. — Al Jazeera"),
+         deck="Troops out past Yellow Line; Hamas: breach."),
     dict(n=10, scene=scene_mercury, kick="SPACE · SCIENCE", chip=("ARRIVED · ESA", "ARRIVED"),
          head="BepiColombo reaches Mercury",
-         deck="After eight years the ESA–JAXA probe arrives; it enters orbit "
-              "on Saturday. — ESA"),
+         deck="8 years, 6bn miles; orbit entry Saturday. — ESA"),
     dict(n=11, scene=scene_japan, kick="TOKYO · ECONOMY", chip=("OFFICIAL · STATISTICS", "OFFICIAL"),
          head="Japan's inflation rises to 2.3%",
-         deck="October prices +2.3%; a December rate rise in view as shares "
-              "tumble. — Reuters"),
+         deck="Oct prices +2.3%; December rate rise in view. — Reuters"),
     dict(n=12, scene=scene_strike, kick="ROME · LABOUR", chip=("REPORT · REUTERS", "REPORT"),
          head="General strike over Italy's budget",
-         deck="CGIL's 24-hour strike; workers and students march in about "
-              "100 rallies, the union says."),
+         deck="CGIL 24-hour strike; ±100 rallies, union says."),
     dict(n=13, scene=scene_exam, kick="SEOUL · EXAM", chip=("OFFICIALS · SEOUL", "OFFICIALS"),
          head="111 caught cheating in Suneung",
-         deck="Students caught with banned smart devices in the national "
-              "university exam, officials say."),
+         deck="Banned smart devices in the exam, officials say."),
     dict(n=14, scene=scene_pill, kick="HEALTH · SCIENCE", chip=("EARLY TRIAL", "EARLY"),
          head="Pill shrinks pancreatic tumours",
-         deck="In an early trial, tumours vanished from scans in 1 of 12 "
-              "patients; bigger trials to come."),
+         deck="Tumours gone in 1 of 12; bigger trials to come."),
     dict(n=15, scene=scene_kenya, kick="TURKANA · ENERGY", chip=("CEREMONY · ALLAFRICA", "CEREMONY"),
          head="Kenya drills its first oil well",
-         deck="Ceremony in Turkana; first crude is due on 1 December, the "
-              "company says. — allAfrica"),
+         deck="Turkana ceremony; first crude due 1 Dec."),
     dict(n=16, scene=scene_tennis, kick="TURIN · TENNIS", chip=("RESULT · ATP", "RESULT"),
          head="Alcaraz sweeps into the last four",
-         deck="Beats Cobolli 6-4 6-1 at the ATP Finals; Medvedev beats "
-              "Tiafoe 6-3 6-4. — ATP"),
+         deck="Cobolli beaten 6-4 6-1; Medvedev wins 6-3 6-4."),
 ]
 
 BRIEFS = [
@@ -663,7 +695,6 @@ BRIEFS = [
     ("Wellington:", "Nicholls 175 in a stand of 216 (ICC)"),
     ("Sydney:", "shares fall 1.6% in the sell-off"),
     ("Antalya:", "EU official calls draft unacceptable"),
-    ("Turin:", "ATP backs pay plan past $350m"),
     ("Budapest:", "Carlsen risks No. 1 after winless event"),
     ("Football:", "Ireland to face Croatia in play-off"),
     ("Tennis:", "Leon Smith quits as GB Davis Cup captain"),
@@ -684,7 +715,7 @@ BRIEFS = [
 # region tag per brief, same order as BRIEFS (EUR/ASI/AME/AFR/MEA/OCE/GLO)
 BRIEF_REGIONS = ["EUR", "EUR", "EUR", "EUR", "ASI", "ASI", "MEA", "MEA",
                  "AFR", "AFR", "AFR", "AFR", "AME", "AME", "OCE", "OCE",
-                 "EUR", "GLO", "GLO", "EUR", "EUR", "MEA", "MEA", "AFR",
+                 "EUR", "EUR", "EUR", "EUR", "MEA", "MEA", "AFR",
                  "AFR", "ASI", "AME", "AME", "AME", "ASI", "AME", "OCE",
                  "AME"]
 
@@ -730,7 +761,8 @@ def draw_map(d, x0, y0, cw=4.0, rh=5.0):
                           fill=(146, 128, 96))
     for n, (ci, ri) in PINS.items():
         cx, cy = x0 + ci * cw, y0 + ri * rh
-        d.ellipse([cx - 6, cy - 6, cx + 6, cy + 6], fill=RED)
+        d.ellipse([cx - 6, cy - 6, cx + 6, cy + 6],
+                  fill=REGION_COLORS[STORY_REGION[n]])
         s = str(n)
         f = SANS_B(7)
         d.text((cx - d.textlength(s, font=f) / 2, cy - 4), s, font=f,
@@ -757,23 +789,27 @@ def build_page():
 
     # ---- top strap + masthead
     d.text((MX, 8), "THE WORLD'S NEWS IN ONE PICTURE", font=SANS_B(10), fill=RED_DK)
-    strap = "49 STORIES · 7 REGIONS · 10 FIELDS · COMPLETE DAY — INCL. EVENING RESULTS"
+    strap = "48 STORIES · 7 REGIONS · 17 FIELDS · COMPLETE DAY — INCL. EVENING RESULTS"
     d.text((W - MX - d.textlength(strap, font=SANS_B(10)), 8), strap,
            font=SANS_B(10), fill=INK)
     d.line([MX, 24, W - MX, 24], fill=INK, width=2)
-    center(d, 26, "Friday 20 November 2026", SERIF(57), INK)
-    d.line([MX, 92, W - MX, 92], fill=INK, width=1)
+    mast = "Friday 20 November 2026"
+    center(d, 24, mast, fit_font(mast, CW, SERIF_BLACK, 92, 60), INK)
+    d.line([MX, 106, W - MX, 106], fill=INK, width=1)
     sub = ("Russia's biggest blitz hits Kyiv's bridges · Cyclone Akvan "
            "strikes Odisha · An AI sell-off sinks Asia's markets")
-    center(d, 97, sub, SANS_O(12.5), RED_DK)
+    center(d, 111, sub, SERIF_I(15), RED_DK)
 
     # ---- region tally bar
-    by = 116
-    regions = [("Europe 11", (52, 84, 140)), ("Asia-Pacific 10", (178, 34, 30)),
-               ("Americas 9", (23, 92, 96)), ("Africa 7", (196, 148, 38)),
-               ("Middle East 5", (120, 70, 160)), ("Oceania 3", (38, 110, 62)),
-               ("Global 4", (96, 90, 78))]
-    widths = [11, 10, 9, 7, 5, 3, 4]
+    by = 134
+    regions = [("Europe 13", REGION_COLORS["EUR"]),
+               ("Asia-Pacific 9", REGION_COLORS["ASI"]),
+               ("Americas 9", REGION_COLORS["AME"]),
+               ("Africa 7", REGION_COLORS["AFR"]),
+               ("Middle East 5", REGION_COLORS["MEA"]),
+               ("Oceania 3", REGION_COLORS["OCE"]),
+               ("Global 2", REGION_COLORS["GLO"])]
+    widths = [13, 9, 9, 7, 5, 3, 2]
     d.rectangle([MX, by, MX + 46, by + 13], fill=INK)
     d.text((MX + 5, by + 2), "REGION", font=SANS_B(7.5), fill=(255, 255, 255))
     x = MX + 48
@@ -791,10 +827,13 @@ def build_page():
     # ---- field tally strip (breadth by subject, counted)
     fy2 = by + 16
     d.rectangle([MX, fy2, W - MX, fy2 + 15], fill=INK)
-    fields = ("BY FIELD — Conflict 10 · Markets 8 · Politics 8 · Sport 7 · "
-              "Science & Health 3 · Business 3 · Diplomacy 2 · Climate 2 · "
-              "Weather & Disaster 4 · Society 2")
-    d.text((MX + 8, fy2 + 3), fields, font=SANS_B(8.5), fill=(255, 255, 255))
+    fields = ("FIELDS — Conflict 9 · Sport 6 · Politics 5 · Economy 5 · "
+              "Disaster 3 · Markets 3 · Diplomacy 2 · Courts 2 · Climate 2 · "
+              "Energy 2 · Health 2 · Society 2 · Weather 1 · Culture 1 · "
+              "Labour 1 · Science 1 · Trade 1")
+    d.text((MX + 8, fy2 + 3), fields,
+           font=fit_font(fields, CW - 16, SANS_B, 9, 7),
+           fill=(255, 255, 255))
 
     # ---- THE DAY IN NUMBERS strip
     ny = fy2 + 24
@@ -806,13 +845,13 @@ def build_page():
     for i, (big, small) in enumerate(tallies):
         x = MX + i * colw
         if i:
-            d.line([x - 7, ny + 13, x - 7, ny + 45], fill=RED, width=2)
-        d.text((x, ny + 11), big, font=SERIF(20), fill=INK)
-        text_block(d, x, ny + 36, small, SANS(8.5), MUTE, colw - 12, 9.5,
+            d.line([x - 7, ny + 13, x - 7, ny + 52], fill=RED, width=2)
+        d.text((x, ny + 11), big, font=SANS_B(30), fill=INK)
+        text_block(d, x, ny + 44, small, SANS(8.5), MUTE, colw - 12, 9.5,
                    max_lines=1, tag=f"tally{i}")
 
     # ---- UTC timeline strip: hour-true positions, staggered labels
-    ly = ny + 50
+    ly = ny + 58
     d.text((MX, ly + 4), "THE DAY IN UTC", font=SANS_B(9), fill=RED_DK)
     d.line([MX + 96, ly + 9, W - MX, ly + 9], fill=(150, 142, 124), width=1)
     events = [(2 / 24, "02:00", "Akvan landfall", 0),
@@ -831,18 +870,19 @@ def build_page():
 
     # ---- heroes
     hy = ly + 48
-    hero_h, scene_h = 230, 104
+    hero_h, scene_h = 254, 108
     gap = 8
     hw = (CW - gap * 3) // 4
     for i, s in enumerate(HEROES):
         x = MX + i * (hw + gap)
         d = paste_scene(page, s["scene"](hw, scene_h), x, hy)
-        num_badge(d, x + 5, hy + scene_h + 6, s["n"])
+        num_badge(d, x + 5, hy + scene_h + 6, s["n"],
+                  bg=REGION_COLORS[STORY_REGION[s["n"]]])
         d.text((x + 26, hy + scene_h + 8), s["kick"], font=SANS_B(8.5), fill=RED_DK)
-        yy = text_block(d, x, hy + scene_h + 24, s["head"], SERIF(16.5), INK,
-                        hw - 2, 18.5, max_lines=3, tag=f"hero{s['n']} head")
-        yy = text_block(d, x, yy + 2, s["deck"], SANS(9.8), (52, 48, 40),
-                        hw - 2, 12.0, max_lines=6, tag=f"hero{s['n']} deck")
+        yy = text_block(d, x, hy + scene_h + 24, s["head"], SERIF(24), INK,
+                        hw - 2, 25, max_lines=3, tag=f"hero{s['n']} head")
+        yy = text_block(d, x, yy + 2, s["deck"], SANS(10.5), (52, 48, 40),
+                        hw - 2, 12.5, max_lines=5, tag=f"hero{s['n']} deck")
         left = chip(d, x + hw - 2, hy + hero_h - 16, s["chip"][0], s["chip"][1])
         if s.get("chip2"):
             chip(d, left - 4, hy + hero_h - 16, s["chip2"][0], s["chip2"][1])
@@ -852,7 +892,7 @@ def build_page():
 
     # ---- cards, two rows of six
     cy = hy + hero_h + 6
-    card_h, cscene_h = 140, 44
+    card_h, cscene_h = 140, 52
     cw6 = (CW - gap * 5) // 6
     for r in range(2):
         for c in range(6):
@@ -860,50 +900,51 @@ def build_page():
             x = MX + c * (cw6 + gap)
             y = cy + r * (card_h + 5)
             d = paste_scene(page, s["scene"](cw6, cscene_h), x, y)
-            num_badge(d, x + 3, y + cscene_h + 4, s["n"])
+            num_badge(d, x + 3, y + cscene_h + 4, s["n"],
+                      bg=REGION_COLORS[STORY_REGION[s["n"]]])
             d.text((x + 23, y + cscene_h + 6), s["kick"], font=SANS_B(7.5),
                    fill=RED_DK)
-            yy = text_block(d, x, y + cscene_h + 19, s["head"], SERIF(12),
-                            INK, cw6 - 1, 14, max_lines=3, tag=f"card{s['n']} head")
-            text_block(d, x, yy + 1, s["deck"], SANS(8.6), (52, 48, 40),
-                       cw6 - 1, 10.6, max_lines=4, tag=f"card{s['n']} deck")
+            yy = text_block(d, x, y + cscene_h + 19, s["head"], SERIF(16),
+                            INK, cw6 - 1, 17.5, max_lines=2, tag=f"card{s['n']} head")
+            text_block(d, x, yy + 1, s["deck"], SANS(10), (52, 48, 40),
+                       cw6 - 1, 11, max_lines=3, tag=f"card{s['n']} deck")
             chip(d, x + cw6 - 1, y + card_h - 14, s["chip"][0], s["chip"][1])
 
     # ---- bottom: map + date check + legend (left), briefs (right)
-    boty = cy + 2 * card_h + 13
+    boty = cy + 2 * card_h + 8
     d.line([MX, boty - 6, W - MX, boty - 6], fill=INK, width=1)
     d.text((MX, boty), "WHERE IT HAPPENED", font=SANS_B(10), fill=INK)
     d.text((MX + 170, boty), "pins 1–16 = heroes & cards", font=SANS(8.5), fill=MUTE)
-    draw_map(d, MX + 2, boty + 16, rh=3.5)
-    dcy = boty + 101
-    d.rectangle([MX, dcy, MX + 292, dcy + 58], outline=RED, width=1)
+    draw_map(d, MX + 2, boty + 15, rh=2.6)
+    dcy = boty + 78
+    d.rectangle([MX, dcy, MX + 292, dcy + 52], outline=RED, width=1)
     d.text((MX + 6, dcy + 4), "DATE CHECK — LEFT OUT AS OLDER NEWS",
            font=SANS_B(8.5), fill=RED_DK)
-    text_block(d, MX + 6, dcy + 17,
+    text_block(d, MX + 6, dcy + 15,
                "Thu 19 Nov: Shenzhen declaration; ICJ Myanmar ruling; "
                "Anthropic's debut (Fri fall shown); GTA VI launch "
                "(Fri sales shown). 16–17 Nov: Crimean strikes. "
                "NOT YET: Mercury orbit Sat 21 Nov; ATP final Sun 22 Nov; "
                "Las Vegas GP Sun 23 Nov.",
                SANS(8.0), (52, 48, 40), 280, 9.0, max_lines=5, tag="datecheck")
-    lgy = dcy + 61
-    d.rectangle([MX, lgy, MX + 292, lgy + 41], outline=(150, 142, 124), width=1)
+    lgy = dcy + 56
+    d.rectangle([MX, lgy, MX + 292, lgy + 30], outline=(150, 142, 124), width=1)
     d.text((MX + 6, lgy + 3), "HOW SURE — THE CHIP ON EACH STORY",
            font=SANS_B(7.8), fill=INK)
     text_block(d, MX + 6, lgy + 13,
                "CONFIRMED = 2+ outlets · OFFICIAL = the body itself · "
-               "REPORT = one outlet · CLAIM = one side's word · "
-               "ESTIMATE = a firm's figure · CLOSE = exchange close",
-               SANS(7.6), (52, 48, 40), 280, 9.0, max_lines=3, tag="legend")
+               "REPORT = one outlet · CLAIM = one side · "
+               "ESTIMATE = a firm's figure · CLOSE = close",
+               SANS(7.6), (52, 48, 40), 280, 8.6, max_lines=2, tag="legend")
     bx = MX + 308
     d.text((bx, boty), "ALSO ON FRIDAY 20 NOVEMBER", font=SANS_B(10), fill=INK)
-    more = "33 MORE STORIES · Nos 17–49"
+    more = "32 MORE STORIES · Nos 17–48"
     d.text((W - MX - d.textlength(more, font=SANS_B(8.5)), boty), more,
            font=SANS_B(8.5), fill=MUTE)
     col_w = (W - MX - bx - 14) // 2
     per = (len(BRIEFS) + 1) // 2
     for ci in range(2):
-        yy = boty + 17
+        yy = boty + 14
         for j in range(per):
             idx = ci * per + j
             if idx >= len(BRIEFS):
@@ -911,8 +952,8 @@ def build_page():
             n = 17 + idx
             lead, rest = BRIEFS[idx]
             line = f"{n}. {BRIEF_REGIONS[idx]} {lead} {rest}"
-            yy = text_block(d, bx + ci * (col_w + 14), yy, line, SANS(9.3),
-                            (52, 48, 40), col_w, 11.0, max_lines=1,
+            yy = text_block(d, bx + ci * (col_w + 14), yy, line, SANS(9.4),
+                            (52, 48, 40), col_w, 9.4, max_lines=1,
                             tag=f"brief{n}")
     # ---- footer
     fy = H - 26
